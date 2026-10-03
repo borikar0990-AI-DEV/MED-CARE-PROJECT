@@ -1,0 +1,65 @@
+# Render Blueprint for MediCare — deploys the backend (FastAPI) and the
+# frontend (React, built and served as a static site) as two free services.
+#
+# The database is NOT defined here on purpose: Render's own free Postgres
+# expires 30 days after creation, which is a bad surprise mid-semester.
+# Use Neon instead (neon.com) — it has a genuinely permanent free tier.
+# See the root README's "Deploying to the internet" section for the full,
+# exact walkthrough this file is paired with.
+#
+# Quick version:
+#   1. Push this repo to GitHub.
+#   2. Render Dashboard -> New -> Blueprint -> connect the repo -> Apply.
+#      (The first deploy attempt will be incomplete — expected, see step 4.)
+#   3. Create a free Neon project, copy its connection string.
+#   4. Open each service's Environment tab on Render and fill in the
+#      "sync: false" variables below:
+#        - medicare-backend:  DATABASE_URL   = your Neon connection string
+#        - medicare-backend:  CORS_ORIGINS   = the medicare-frontend URL Render assigned
+#        - medicare-frontend: VITE_API_BASE_URL = the medicare-backend URL + "/api"
+#      Saving each one triggers an automatic redeploy.
+
+services:
+  - type: web
+    name: medicare-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste your Neon (or other Postgres) connection string here
+      - key: SECRET_KEY
+        generateValue: true # Render generates and stores a secure random value
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "720"
+      - key: CORS_ORIGINS
+        sync: false # paste the medicare-frontend URL here once it exists
+      - key: REMINDER_CHECK_INTERVAL_SECONDS
+        value: "60"
+      - key: UPCOMING_NOTICE_MINUTES
+        value: "10"
+      - key: MISSED_DOSE_GRACE_MINUTES
+        value: "30"
+      - key: ENABLE_DEMO_SEED
+        value: "true"
+
+  - type: web
+    name: medicare-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # React Router's client-side routes (e.g. /app/dashboard) aren't real
+      # files — without this, refreshing on any page but "/" would 404.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false # paste the medicare-backend URL + "/api" here once it exists

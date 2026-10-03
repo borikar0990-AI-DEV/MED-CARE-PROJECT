@@ -1,0 +1,73 @@
+# MediCare — full stack via Docker Compose
+#
+#   docker-compose up --build
+#
+# Then open:
+#   Frontend  http://localhost:3000
+#   API docs  http://localhost:8000/docs
+#
+# This brings up all three tiers described in the project README:
+# PostgreSQL, the FastAPI backend, and the React frontend (built and served
+# by nginx). For day-to-day frontend development, running the backend here
+# and the frontend separately via `npm run dev` (hot reload) is usually
+# nicer — see the root README's "Running the project" section for both
+# options.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medicare_user
+      POSTGRES_PASSWORD: medicare_pass
+      POSTGRES_DB: medicare_db
+    volumes:
+      - medicare_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # optional: lets you psql in from the host while developing
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicare_user -d medicare_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql+psycopg2://medicare_user:medicare_pass@db:5432/medicare_db
+      # CHANGE THIS in any real deployment — generate with:
+      #   python -c "import secrets; print(secrets.token_hex(32))"
+      SECRET_KEY: docker-compose-demo-secret-change-me-2c8f0e9a3b7d4f1a
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "720"
+      # Both the Vite dev server (5173) and this compose's own frontend
+      # (3000) are allowed, so either can talk to this backend unmodified.
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
+      REMINDER_CHECK_INTERVAL_SECONDS: "60"
+      UPCOMING_NOTICE_MINUTES: "10"
+      MISSED_DOSE_GRACE_MINUTES: "30"
+      ENABLE_DEMO_SEED: "true"
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the static build — must be reachable from the user's
+        # *browser*, so it's the host-published backend port, not the
+        # internal "backend:8000" service address.
+        VITE_API_BASE_URL: http://localhost:8000/api
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  medicare_postgres_data:

@@ -1,0 +1,23 @@
+# --- Web framework ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- Database / ORM ---
+SQLAlchemy==2.0.35
+psycopg2-binary==2.9.9   # PostgreSQL driver (only needed if you use Postgres, not SQLite)
+
+# --- Validation / settings ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+
+# --- Auth / security ---
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9   # required by FastAPI for form/file uploads (profile photo)
+
+# --- Background scheduler (reminders) ---
+APScheduler==3.10.4
+
+# --- Env vars ---
+python-dotenv==1.0.1
