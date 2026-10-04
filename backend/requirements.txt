@@ -14,6 +14,7 @@ email-validator==2.2.0
 # --- Auth / security ---
 PyJWT==2.9.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 python-multipart==0.0.9   # required by FastAPI for form/file uploads (profile photo)
 
 # --- Background scheduler (reminders) ---
